@@ -1,0 +1,65 @@
+// ==UserScript==
+// @name         Voice Controls Dropdown
+// @author       You
+// @version      1.0
+// @description  Combines Mute, Deafen, and Settings buttons into a dropdown in voice bar
+// ==/UserScript==
+
+module.exports = class VoiceDropdown {
+    onLoad() {
+        console.log("VoiceDropdown loaded");
+    }
+
+    onStart() {
+        const { React, Patcher } = BdApi; // Vencord uses BdApi
+        const { findModule } = BdApi;
+
+        // Get the button components
+        const MuteButton = findModule(m => m?.displayName === "MuteButton", {searchExports: true});
+        const DeafenButton = findModule(m => m?.displayName === "DeafenButton", {searchExports: true});
+        const SettingsButton = findModule(m => m?.displayName === "SettingsButton", {searchExports: true});
+
+        if (!MuteButton || !DeafenButton || !SettingsButton) return;
+
+        // Patch the VoiceBar
+        const VoiceBar = findModule(m => m?.default?.displayName === "VoiceUser", {searchExports: true});
+        if (!VoiceBar) return;
+
+        Patcher.after(VoiceBar, "default", (_, [props], ret) => {
+            const dropdownStyle = {
+                display: "flex",
+                flexDirection: "column",
+                position: "absolute",
+                top: "30px",
+                right: "0px",
+                backgroundColor: "#2f3136",
+                borderRadius: "5px",
+                padding: "5px",
+                zIndex: 9999,
+            };
+
+            const Dropdown = () => {
+                const [open, setOpen] = React.useState(false);
+                return React.createElement("div", {style: {position: "relative"}},
+                    React.createElement("button", {
+                        onClick: () => setOpen(!open),
+                        style: {background: "#7289da", color: "white", border: "none", borderRadius: "5px", padding: "5px 10px"}
+                    }, "Voice Controls"),
+                    open && React.createElement("div", {style: dropdownStyle},
+                        React.createElement(MuteButton.default, props),
+                        React.createElement(DeafenButton.default, props),
+                        React.createElement(SettingsButton.default, props)
+                    )
+                );
+            };
+
+            ret.props.children.push(React.createElement(Dropdown));
+            return ret;
+        });
+    }
+
+    onStop() {
+        const { Patcher } = BdApi;
+        Patcher.unpatchAll();
+    }
+};
